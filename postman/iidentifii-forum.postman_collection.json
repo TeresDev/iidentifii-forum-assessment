@@ -1,0 +1,514 @@
+{
+  "info": {
+    "name": "iiDENTIFii Forum API v1",
+    "description": "Forum API for the iiDENTIFii Senior Full Stack assessment.\n\n**Getting started**\n\n1. Start the API: `cd api && dotnet run --project src/Forum.Api` (listens on http://localhost:5080).\n2. Run **Auth / Login as a user** — the token is captured into a collection variable automatically, so every authenticated request below just works.\n3. Run **Auth / Login as a moderator** before using the Moderation folder.\n4. Run **Posts / Create a post** before the Comments, Likes and Moderation folders — it captures `postId`.\n\nDemo accounts are seeded on first run: `alice` / `Password123!` (regular) and `mod.jordan` / `Moderator1!` (moderator).\n\nThe **Failure cases** folder exercises the business rules that are easy to miss: liking your own post, liking twice, and a regular user attempting moderation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5080/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "moderatorToken", "value": "" },
+    { "key": "postId", "value": "" },
+    { "key": "authorId", "value": "" },
+    { "key": "newUsername", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register a new user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Unique each run so the request stays repeatable without manual edits.",
+                  "pm.collectionVariables.set('newUsername', 'user' + Date.now().toString().slice(-8));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('never granted the Moderator role', () => {",
+                  "  pm.expect(pm.response.json().role).to.eql('User');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{newUsername}}\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Creates a regular user. The role is never read from the request body."
+          }
+        },
+        {
+          "name": "Login as a user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.accessToken);",
+                  "pm.collectionVariables.set('authorId', body.user.id);",
+                  "pm.test('role is a string, not a number', () => {",
+                  "  pm.expect(body.user.role).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Captures the bearer token into the `token` collection variable. Run this first."
+          }
+        },
+        {
+          "name": "Login as a moderator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('moderatorToken', body.accessToken);",
+                  "pm.test('is a moderator', () => pm.expect(body.user.role).to.eql('Moderator'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"mod.jordan\",\n  \"password\": \"Moderator1!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "List posts (filtered, sorted, paged)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns a paged envelope', () => {",
+                  "  pm.expect(body).to.have.all.keys('items', 'page', 'pageSize', 'totalCount', 'totalPages');",
+                  "});",
+                  "pm.test('respects pageSize', () => {",
+                  "  pm.expect(body.items.length).to.be.at.most(body.pageSize);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/posts?page=1&pageSize=10&sort=likes&dir=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"],
+              "query": [
+                { "key": "page", "value": "1", "description": "1-based" },
+                { "key": "pageSize", "value": "10", "description": "1 to 50" },
+                { "key": "sort", "value": "likes", "description": "date | likes" },
+                { "key": "dir", "value": "desc", "description": "asc | desc" },
+                { "key": "author", "value": "", "description": "author id", "disabled": true },
+                { "key": "tag", "value": "misleading-information", "description": "tag slug", "disabled": true },
+                { "key": "from", "value": "2026-02-01T00:00:00Z", "description": "inclusive", "disabled": true },
+                { "key": "to", "value": "2026-03-01T00:00:00Z", "description": "exclusive", "disabled": true }
+              ]
+            },
+            "description": "Anonymous. Enable the disabled parameters to filter.\n\nDate range is half-open: `from` is inclusive, `to` is exclusive, so adjacent ranges tile without double-counting the boundary.\n\nSorting always carries a unique tiebreaker server-side, so paging stays stable when like counts tie."
+          }
+        },
+        {
+          "name": "Get a post",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/posts/{{postId}}", "host": ["{{baseUrl}}"], "path": ["posts", "{{postId}}"] },
+            "description": "Anonymous. `likedByCurrentUser` is false without a token."
+          }
+        },
+        {
+          "name": "Create a post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('postId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"A post created from Postman\",\n  \"body\": \"Demonstrates third-party access to the same API the web client uses.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/posts", "host": ["{{baseUrl}}"], "path": ["posts"] },
+            "description": "Requires a token. Captures `postId` for the requests below."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "List comments (paged)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/comments?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "comments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            },
+            "description": "Anonymous. Oldest first, with a unique tiebreaker so paging is stable."
+          }
+        },
+        {
+          "name": "Add a comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('201 Created', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"A comment added from Postman.\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "comments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Likes",
+      "item": [
+        {
+          "name": "Like a post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 or 409 if already liked', () => {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/likes",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "likes"]
+            },
+            "description": "Returns the post's new like count. Use a post you did not write — see Failure cases."
+          }
+        },
+        {
+          "name": "Unlike a post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/likes",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "likes"]
+            },
+            "description": "Idempotent: unliking something you never liked is still 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Moderation",
+      "item": [
+        {
+          "name": "Tag a post as misleading",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 or 409 if already tagged', () => {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{moderatorToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"slug\": \"misleading-information\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "tags"]
+            },
+            "description": "Moderators only. Run **Auth / Login as a moderator** first. The tag vocabulary is closed — an unknown slug is a 404."
+          }
+        },
+        {
+          "name": "Remove a tag",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{moderatorToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/tags/misleading-information",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "tags", "misleading-information"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lookups",
+      "item": [
+        {
+          "name": "List tags",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/tags", "host": ["{{baseUrl}}"], "path": ["tags"] },
+            "description": "The closed moderation/topic vocabulary. Populates the tag filter."
+          }
+        },
+        {
+          "name": "List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('never exposes password hashes', () => {",
+                  "  pm.expect(pm.response.text()).to.not.include('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+            "description": "Populates the author filter. Projected to a summary, so the password hash has no path to the wire."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Failure cases",
+      "description": "The rules that matter, and the responses that prove they are enforced server-side rather than by the UI.",
+      "item": [
+        {
+          "name": "Like your own post → 409 self-like",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('code is self-like', () => {",
+                  "  pm.expect(pm.response.json().code).to.eql('self-like');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/likes",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "likes"]
+            },
+            "description": "Run **Posts / Create a post** as alice first, then this. You wrote it, so you cannot like it."
+          }
+        },
+        {
+          "name": "Regular user tags a post → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "// The token is valid. The browser is not involved. The server refuses anyway.",
+                  "pm.test('not a 401 — identity is known, permission is not granted', () => {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"slug\": \"misleading-information\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "tags"]
+            },
+            "description": "Uses the regular-user token. Hiding the control in the web client is presentation; this is the control."
+          }
+        },
+        {
+          "name": "Wrong password → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('does not say which field was wrong', () => {",
+                  "  const detail = JSON.stringify(pm.response.json());",
+                  "  pm.expect(detail).to.not.match(/no such user|user not found|unknown user/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"wrong-password\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Compare the body with the next request. They are identical, deliberately."
+          }
+        },
+        {
+          "name": "Unknown username → 401 (identical response)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('same code as a wrong password', () => {",
+                  "  pm.expect(pm.response.json().code).to.eql('invalid-credentials');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"no-such-person\",\n  \"password\": \"wrong-password\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Same status, same body and the same cost as a wrong password: the unknown-user path still verifies a hash, so response time does not reveal whether the account exists."
+          }
+        },
+        {
+          "name": "pageSize above the limit → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/posts?pageSize=5000",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"],
+              "query": [{ "key": "pageSize", "value": "5000" }]
+            },
+            "description": "Paging is bounded at 50, so a caller cannot ask for the whole table in one request."
+          }
+        }
+      ]
+    }
+  ]
+}

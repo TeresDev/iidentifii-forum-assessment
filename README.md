@@ -74,11 +74,39 @@ Use `npm ci`, not `npm install`. npm 10.x can crash resolving this dependency tr
 
 ```bash
 cd api
-dotnet test        # 77 tests: domain, application and API integration
+dotnet test              # 77 tests: domain rules, application services, API integration
 
 cd ../web
-npm test           # component and API-client specs
+npm test                 # 10 specs: API client contract, auth interceptor, session restore
+npm run e2e              # 12 end-to-end journeys in a real browser
 ```
+
+`npm run e2e` starts the API and the web client itself, so nothing needs to be running first.
+Browsers are downloaded once with `npx playwright install chromium`.
+
+The suites are deliberately layered rather than overlapping. Each business rule is asserted at exactly one
+level: the self-like guard as a domain unit test, constant-time login as an application unit test with a
+mocked hasher, the database constraints and every endpoint as API integration tests, and the user journeys
+end to end. Nothing is asserted three times in three places.
+
+## API documentation (Postman)
+
+`postman/iidentifii-forum.postman_collection.json` — 19 requests across all 13 endpoints, with 25
+assertions. Import it into Postman, or run it headlessly:
+
+```bash
+npx newman run postman/iidentifii-forum.postman_collection.json
+```
+
+Start the API first, then run **Auth / Login as a user** — the bearer token is captured into a collection
+variable automatically, so every authenticated request below it works without copying anything by hand.
+**Auth / Login as a moderator** does the same for the Moderation folder.
+
+The **Failure cases** folder is the interesting one. It exercises the rules that are easy to get wrong:
+liking your own post, a regular user attempting moderation with a perfectly valid token, and the two login
+failures that must be indistinguishable.
+
+The API also serves an OpenAPI document at `http://localhost:5080/openapi/v1.json` while running.
 
 ## Repository layout
 
@@ -302,6 +330,49 @@ the change tracker — a tracked increment would read-modify-write and lose conc
 Write actions are hidden from users who cannot perform them, but hiding is presentation only — every rule
 is enforced server-side and there are tests calling the endpoints directly to prove it.
 
+## Known limitations and trade-offs
+
+Scoped to what the brief asks for. It took longer than the stated six hours — the QA section says every
+flow is verified rather than just the happy path, and I was not willing to ship required flows untested.
+What follows is what I would have cut for a strict six-hour version, and what I left out deliberately.
+
+**The session token lives in `localStorage`.** Readable by any script on the page, and unlike a cookie it
+cannot be made `HttpOnly`. The production answer is a short-lived in-memory access token plus an `HttpOnly`
+refresh cookie. That costs a refresh endpoint, rotation and a CSRF consideration; it is the first thing I
+would add. Mitigations in place: the interceptor attaches the token only to this API's origin, and expiry
+is checked on restore as well as on use.
+
+**SQLite serialises writers.** Correct for a demo an assessor runs from a clone, wrong for a forum with
+real traffic. Persistence is provider-agnostic — no raw SQL, no provider-specific constructs — so moving to
+PostgreSQL is a provider registration and a connection string.
+
+**No rate limiting on `/auth/login`.** Password guessing is only slowed by PBKDF2. Per-IP and per-account
+limits belong here.
+
+**The JWT signing key is committed** in `appsettings.json` so the project runs from a clone with no setup.
+In any real deployment it comes from an environment variable or secret store.
+
+**Offset paging, not keyset.** `LIMIT/OFFSET` degrades on deep pages because the database still walks the
+skipped rows. Fine at 26 posts; at a million, page 10,000 is slow. Keyset paging on `(sortKey, Id)` is the
+fix, and the indexes are already shaped for it.
+
+**Posts and comments cannot be edited or deleted.** Not in the brief, so not built — but a real forum needs
+both, plus an ownership check and a moderation trail.
+
+**What I would cut for six hours:** the end-to-end suite, the Postman failure-case folder, half the
+integration tests, and this document. The domain rules, the list query and the authorisation tests would
+stay — they are the parts that would be embarrassing to get wrong.
+
+## Troubleshooting
+
+**`npm install` fails with `Cannot read properties of null (reading 'edgesOut')`.** An npm 10.x resolver
+bug on this dependency tree. Use `npm ci`, which is what the lockfile is committed for.
+
+**`npx playwright install` times out downloading Chromium.** Usually a machine with a broken IPv6 route
+where DNS still advertises an AAAA record: Playwright resolves IPv6-first and its 5-second attempt timeout
+fires before any fallback, then reports it as a socket timeout, which is misleading. Confirm with
+`curl -6 https://cdn.playwright.dev/` — if that hangs while `curl -4` succeeds, that is the cause.
+
 ## Status
 
-Feature-complete. The Postman collection and end-to-end tests land next — see the commit history.
+Complete. All flows in the brief are implemented, tested and documented.
