@@ -1,0 +1,64 @@
+<p><a routerLink="/">← All posts</a></p>
+
+@if (loading()) {
+  <p class="status" role="status">Loading post…</p>
+} @else if (error(); as message) {
+  <p class="status error" role="alert">
+    {{ message }}
+    <button type="button" (click)="load()">Retry</button>
+  </p>
+} @else if (post(); as item) {
+  <article class="post-detail">
+    <h1>{{ item.title }}</h1>
+
+    <p class="meta">
+      {{ item.authorUsername }} · {{ item.createdAtUtc | date: 'medium' }}
+      · {{ item.likeCount }} likes
+    </p>
+
+    @if (item.tags.length) {
+      <p class="tags">
+        @for (tag of item.tags; track tag.slug) {
+          <span class="tag" [class.moderation]="tag.slug === 'misleading-information'">
+            {{ tag.displayName }}
+          </span>
+        }
+      </p>
+    }
+
+    <p class="body">{{ item.body }}</p>
+  </article>
+
+  <section class="comments">
+    <h2>Comments ({{ comments()?.totalCount ?? 0 }})</h2>
+
+    @if (comments(); as page) {
+      @if (page.items.length === 0) {
+        <p class="status">No comments yet.</p>
+      } @else {
+        <ul>
+          @for (comment of page.items; track comment.id) {
+            <li>
+              <p class="meta">
+                {{ comment.authorUsername }} · {{ comment.createdAtUtc | date: 'medium' }}
+              </p>
+              <p>{{ comment.body }}</p>
+            </li>
+          }
+        </ul>
+
+        @if (page.totalPages > 1) {
+          <nav class="pager">
+            <button type="button" (click)="previousComments()" [disabled]="page.page <= 1">
+              Previous
+            </button>
+            <span>Page {{ page.page }} of {{ page.totalPages }}</span>
+            <button type="button" (click)="nextComments()" [disabled]="page.page >= page.totalPages">
+              Next
+            </button>
+          </nav>
+        }
+      }
+    }
+  </section>
+}

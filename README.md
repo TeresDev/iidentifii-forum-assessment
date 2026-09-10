@@ -259,6 +259,21 @@ from the request would let anyone register as a moderator and tag content.
 logic being assessed. Also rejected: cookie sessions, which are arguably safer for a browser client but
 awkward for the third-party API access the brief calls out.
 
+**The client keeps the session in `localStorage`, and that is the weakest decision here.** It survives a
+page refresh, which matters for anything usable. It is also readable by any JavaScript running on the page,
+so a successful XSS can exfiltrate the token — and unlike a cookie, `HttpOnly` cannot protect it.
+
+The better arrangement is a short-lived access token held only in memory plus an `HttpOnly`, `SameSite`
+refresh cookie: it survives refresh without ever exposing the token to script. That costs a refresh
+endpoint, rotation, and a CSRF consideration on the refresh call. It was not built here, deliberately, and
+it is the first thing I would add.
+
+Two things narrow the window in the meantime. The interceptor attaches the token **only to this API's
+origin**, so it is never sent to a third-party host — there is a test for that, because an interceptor that
+attaches unconditionally hands the session to every domain the app ever calls. And expiry is checked when
+the session is restored as well as when it is used, so a stale token is discarded on load rather than
+replayed into a wall of 401s.
+
 *At production scale:* the signing key moves out of `appsettings.json` to an environment variable or secret
 store. There is currently no rate limiting on the login endpoint.
 

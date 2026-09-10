@@ -1,5 +1,20 @@
 <header class="masthead">
   <a class="brand" routerLink="/">iiDENTIFii Forum</a>
+
+  <nav class="session">
+    @if (auth.isAuthenticated()) {
+      <span class="who">
+        {{ auth.username() }}
+        @if (auth.isModerator()) {
+          <span class="badge">Moderator</span>
+        }
+      </span>
+      <button type="button" class="secondary" (click)="signOut()">Sign out</button>
+    } @else {
+      <a routerLink="/login">Sign in</a>
+      <a routerLink="/register">Register</a>
+    }
+  </nav>
 </header>
 
 <main>

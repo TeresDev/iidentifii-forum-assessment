@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { AuthStore } from './core/auth/auth-store';
 
 @Component({
   selector: 'app-root',
@@ -8,4 +9,12 @@ import { RouterLink, RouterOutlet } from '@angular/router';
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App {}
+export class App {
+  protected readonly auth = inject(AuthStore);
+  private readonly router = inject(Router);
+
+  protected signOut(): void {
+    this.auth.logout();
+    this.router.navigateByUrl('/');
+  }
+}

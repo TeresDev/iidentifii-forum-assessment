@@ -1,0 +1,33 @@
+<form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+  <h1>Sign in</h1>
+
+  <label>
+    Username
+    <input formControlName="username" autocomplete="username" />
+  </label>
+  @if (form.controls.username.touched && form.controls.username.invalid) {
+    <p class="field-error">Username is required.</p>
+  }
+
+  <label>
+    Password
+    <input type="password" formControlName="password" autocomplete="current-password" />
+  </label>
+  @if (form.controls.password.touched && form.controls.password.invalid) {
+    <p class="field-error">Password is required.</p>
+  }
+
+  @if (error(); as message) {
+    <p class="status error" role="alert">{{ message }}</p>
+  }
+
+  <button type="submit" [disabled]="submitting()">
+    {{ submitting() ? 'Signing in…' : 'Sign in' }}
+  </button>
+
+  <p class="hint">
+    No account? <a routerLink="/register">Register</a>.
+    Demo: <code>alice</code> / <code>Password123!</code>,
+    moderator <code>mod.jordan</code> / <code>Moderator1!</code>.
+  </p>
+</form>

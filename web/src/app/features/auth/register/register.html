@@ -1,0 +1,29 @@
+<form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+  <h1>Create an account</h1>
+
+  <label>
+    Username
+    <input formControlName="username" autocomplete="username" />
+  </label>
+  @if (form.controls.username.touched && form.controls.username.invalid) {
+    <p class="field-error">Username must be between 3 and 32 characters.</p>
+  }
+
+  <label>
+    Password
+    <input type="password" formControlName="password" autocomplete="new-password" />
+  </label>
+  @if (form.controls.password.touched && form.controls.password.invalid) {
+    <p class="field-error">Password must be at least 8 characters.</p>
+  }
+
+  @if (error(); as message) {
+    <p class="status error" role="alert">{{ message }}</p>
+  }
+
+  <button type="submit" [disabled]="submitting()">
+    {{ submitting() ? 'Creating…' : 'Create account' }}
+  </button>
+
+  <p class="hint">Already registered? <a routerLink="/login">Sign in</a>.</p>
+</form>
