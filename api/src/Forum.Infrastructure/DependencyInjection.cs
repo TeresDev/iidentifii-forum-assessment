@@ -1,4 +1,7 @@
+using Forum.Application.Abstractions;
 using Forum.Infrastructure.Persistence;
+using Forum.Infrastructure.Persistence.Repositories;
+using Forum.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +18,12 @@ public static class DependencyInjection
             ?? "Data Source=forum.db";
 
         services.AddDbContext<ForumDbContext>(options => options.UseSqlite(connectionString));
+
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+        services.AddScoped<ITokenService, JwtTokenService>();
 
         return services;
     }

@@ -120,6 +120,32 @@ and both insert. The composite primary key makes the second insert fail at the d
 place the guarantee can actually be made. The application also checks first, so the common case returns a
 clean error rather than an exception — but the key is the control, not the check.
 
+### Authentication is JWT, issued in-process
+
+The brief requires authentication handled in the application rather than by an external provider.
+Passwords are hashed with PBKDF2 via ASP.NET Core Identity's `PasswordHasher`; only that hashing primitive
+is borrowed, and none of Identity's stores, managers or tables are used. The authentication logic stays in
+this codebase where it can be read.
+
+Tokens are stateless bearer JWTs, so the same credentials work identically for the web client and for a
+third-party consumer hitting the API from Postman — which the brief requires as a first-class case.
+
+**Login does not reveal whether an account exists.** Both failure modes return the same status, the same
+body and the same message. Less obviously, both also cost the same: when the username is unknown the
+password is still verified, against a fixed dummy hash. Returning early would make the unknown-user path
+finish in microseconds while a real user costs around 100 ms of PBKDF2, and that difference is measurable
+over a network. There is a unit test asserting the hasher is invoked even when no user was found.
+
+**The registration endpoint never accepts a role.** New accounts are always regular users. Taking the role
+from the request would let anyone register as a moderator and tag content.
+
+*Rejected:* full ASP.NET Core Identity, which brings roughly seven tables and hides the authentication
+logic being assessed. Also rejected: cookie sessions, which are arguably safer for a browser client but
+awkward for the third-party API access the brief calls out.
+
+*At production scale:* the signing key moves out of `appsettings.json` to an environment variable or secret
+store. There is currently no rate limiting on the login endpoint.
+
 ### `LikeCount` is denormalised
 
 Sorting by popularity is a stated requirement. Counting likes per post on every page load means a join and
