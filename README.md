@@ -17,16 +17,48 @@ Built for the iiDENTIFii Senior Full Stack Engineer technical assessment.
 | Web tests | Vitest |
 | End-to-end | Playwright |
 
-## Status
+## Prerequisites
 
-In progress. Setup and run instructions, architecture notes and the Postman collection land as the
-corresponding features do — see the commit history.
+- **.NET SDK 10.0.302** or later — `dotnet --version`
+- **Node.js** `>= 20.19`, `>= 22.12`, or `>= 24` — `node --version`
+
+No database server is required. SQLite runs in-process and the database file is created and seeded on
+first run.
+
+## Running the API
+
+```bash
+cd api
+dotnet run --project src/Forum.Api
+```
+
+The API listens on **http://localhost:5080**. HTTP only — there is no HTTPS profile, so no
+`dotnet dev-certs` step is needed.
+
+## Running the tests
+
+```bash
+cd api
+dotnet test
+```
 
 ## Repository layout
 
 ```
 api/        ASP.NET Core solution
+  src/Forum.Domain           entities and business rules — no dependencies
+  src/Forum.Application      use-case services and port interfaces
+  src/Forum.Infrastructure   EF Core, security and other outward adapters
+  src/Forum.Api              controllers and composition root
+  tests/                     unit and integration tests
 web/        Angular client
 postman/    Public Postman collection
-docs/       Architecture decisions and design rationale
 ```
+
+Dependencies point inward: `Domain ← Application ← Infrastructure`, with `Api` composing them.
+`Forum.Application` has no EF Core reference, so persistence cannot leak into business logic.
+
+## Status
+
+In progress. Setup instructions, architecture notes and the Postman collection land as the corresponding
+features do — see the commit history.
