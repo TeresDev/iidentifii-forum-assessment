@@ -120,6 +120,17 @@ and both insert. The composite primary key makes the second insert fail at the d
 place the guarantee can actually be made. The application also checks first, so the common case returns a
 clean error rather than an exception — but the key is the control, not the check.
 
+The constraint violation is caught and translated to `409 duplicate-like` rather than surfacing as a 500.
+Self-likes are a separate `409 self-like`, raised by the domain guard before any database work happens —
+they are two distinct rules and the client can tell them apart.
+
+The insert and the counter update share one transaction, and the counter moves with a set-based
+`ExecuteUpdateAsync` rather than a tracked read-modify-write. Two concurrent likes on the same post would
+otherwise both read the same starting value and write the same result, losing one.
+
+`DELETE` is idempotent: unliking something you never liked returns `204`, because the caller asked for the
+like to be absent and afterwards it is. The count is never driven negative.
+
 ### The post list is one query, and the ordering is total
 
 Listing posts supports filtering by author, tag and date range, sorting by date or like count in either

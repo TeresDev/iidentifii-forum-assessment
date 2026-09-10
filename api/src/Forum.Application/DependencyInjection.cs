@@ -9,6 +9,8 @@ public static class DependencyInjection
     {
         services.AddScoped<AuthService>();
         services.AddScoped<PostService>();
+        services.AddScoped<CommentService>();
+        services.AddScoped<LikeService>();
         services.AddSingleton(TimeProvider.System);
 
         return services;
