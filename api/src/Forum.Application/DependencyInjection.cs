@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<PostService>();
         services.AddScoped<CommentService>();
         services.AddScoped<LikeService>();
+        services.AddScoped<TagService>();
         services.AddSingleton(TimeProvider.System);
 
         return services;

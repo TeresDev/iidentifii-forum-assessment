@@ -131,6 +131,28 @@ otherwise both read the same starting value and write the same result, losing on
 `DELETE` is idempotent: unliking something you never liked returns `204`, because the caller asked for the
 like to be absent and afterwards it is. The count is never driven negative.
 
+### Moderation is enforced by the server, not by the UI
+
+Tagging is guarded by one named authorization policy applied to the whole controller, rather than role
+checks repeated inside each action. There is a single place to read it and a single place to change it.
+
+The web client hides the tag control from non-moderators, but that is presentation. The control is the
+policy, and the distinction is observable:
+
+```
+anonymous                     → 401   we do not know who you are
+regular user, valid token     → 403   we do, and you may not
+moderator                     → 201
+```
+
+That middle case is the one that matters — a third-party consumer holding a perfectly valid regular-user
+token, calling the endpoint directly and bypassing the browser entirely. There is an integration test for
+it, because it is the difference between an access rule and a hidden button.
+
+The tag vocabulary is closed and seeded: applying a slug that is not in it returns `404`. Moderators flag
+content against defined categories rather than inventing them at the point of moderation, which is what
+makes the regulatory motivation in the brief meaningful. Each application records who tagged and when.
+
 ### The post list is one query, and the ordering is total
 
 Listing posts supports filtering by author, tag and date range, sorting by date or like count in either

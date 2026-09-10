@@ -63,3 +63,6 @@ public record PostDetail(
 public record CreatePostRequest(
     [Required][StringLength(200, MinimumLength = 5)] string Title,
     [Required][StringLength(10_000, MinimumLength = 1)] string Body);
+
+public record AddTagRequest(
+    [Required][StringLength(64, MinimumLength = 1)] string Slug);
