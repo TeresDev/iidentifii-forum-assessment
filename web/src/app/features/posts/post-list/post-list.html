@@ -1,0 +1,97 @@
+<section class="filters" [formGroup]="filters">
+  <h2>Browse posts</h2>
+
+  <div class="filter-grid">
+    <label>
+      Author
+      <select formControlName="author">
+        <option value="">Anyone</option>
+        @for (author of authors(); track author.id) {
+          <option [value]="author.id">{{ author.username }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Tag
+      <select formControlName="tag">
+        <option value="">Any tag</option>
+        @for (tag of tags(); track tag.slug) {
+          <option [value]="tag.slug">{{ tag.displayName }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Posted on or after
+      <input type="date" formControlName="from" />
+    </label>
+
+    <label>
+      Posted before
+      <input type="date" formControlName="to" />
+    </label>
+
+    <label>
+      Sort by
+      <select formControlName="sort">
+        <option value="date">Date</option>
+        <option value="likes">Likes</option>
+      </select>
+    </label>
+
+    <label>
+      Direction
+      <select formControlName="dir">
+        <option value="desc">Descending</option>
+        <option value="asc">Ascending</option>
+      </select>
+    </label>
+  </div>
+
+  <button type="button" class="secondary" (click)="clear()">Clear filters</button>
+</section>
+
+@if (store.loading()) {
+  <p class="status" role="status">Loading posts…</p>
+} @else if (store.error(); as error) {
+  <p class="status error" role="alert">
+    {{ error }}
+    <button type="button" (click)="store.refresh()">Retry</button>
+  </p>
+} @else if (store.isEmpty()) {
+  <p class="status">No posts match these filters.</p>
+} @else {
+  <p class="result-count">{{ store.totalCount() }} posts</p>
+
+  <ul class="posts">
+    @for (post of store.posts(); track post.id) {
+      <li class="post">
+        <h3><a [routerLink]="['/posts', post.id]">{{ post.title }}</a></h3>
+
+        <p class="meta">
+          {{ post.authorUsername }} · {{ post.createdAtUtc | date: 'mediumDate' }}
+          · {{ post.likeCount }} likes · {{ post.commentCount }} comments
+        </p>
+
+        @if (post.tags.length) {
+          <p class="tags">
+            @for (tag of post.tags; track tag.slug) {
+              <span class="tag" [class.moderation]="tag.slug === 'misleading-information'">
+                {{ tag.displayName }}
+              </span>
+            }
+          </p>
+        }
+
+        <p class="excerpt">{{ post.excerpt }}…</p>
+      </li>
+    }
+  </ul>
+
+  <nav class="pager">
+    <button type="button" (click)="previousPage()" [disabled]="store.page() <= 1">Previous</button>
+    <span>Page {{ store.page() }} of {{ store.totalPages() }}</span>
+    <button type="button" (click)="nextPage()" [disabled]="store.page() >= store.totalPages()">Next</button>
+  </nav>
+}

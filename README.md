@@ -55,11 +55,29 @@ The seed is deliberately shaped so the list features are demonstrable: 26 posts 
 uneven spread (`alice` has 11, enough to page a filtered result), deliberate ties in like count, nine posts
 with no comments, and one with thirteen so comment paging has something to page.
 
+## Running the web client
+
+With the API already running, in a second terminal:
+
+```bash
+cd web
+npm ci
+npm start
+```
+
+The client is served on **http://localhost:4200** and talks to the API over HTTP only.
+
+Use `npm ci`, not `npm install`. npm 10.x can crash resolving this dependency tree from scratch
+(`Cannot read properties of null (reading 'edgesOut')`); the committed lockfile avoids it.
+
 ## Running the tests
 
 ```bash
 cd api
-dotnet test
+dotnet test        # 77 tests: domain, application and API integration
+
+cd ../web
+npm test           # component and API-client specs
 ```
 
 ## Repository layout
@@ -130,6 +148,25 @@ otherwise both read the same starting value and write the same result, losing on
 
 `DELETE` is idempotent: unliking something you never liked returns `204`, because the caller asked for the
 like to be absent and afterwards it is. The count is never driven negative.
+
+### Front-end state is signals in a service, not a store library
+
+Each screen's state is three signals — data, loading, error — held in an injectable service, with derived
+values as `computed`. Components read them and render; they do not hold copies.
+
+There is no state shared between unrelated features, nothing to replay, and no reducer indirection worth
+the ceremony at this size. NgRx would add actions, reducers, effects and selectors to express what is
+currently one `subscribe` and three `set` calls. Introducing it later is a local change, because components
+already read from the service rather than from HTTP.
+
+Angular 21 is zoneless, so change detection runs off signal updates rather than monkey-patched async
+callbacks. Components are `OnPush`, which in a signal-driven app is the natural default rather than an
+optimisation.
+
+**The client's query-parameter names are pinned by a test.** The API ignores unrecognised parameters and
+still returns `200` with the full unfiltered list, so a typo — `authorId` for `author`, `direction` for
+`dir` — produces a page that looks like it works while every filter silently does nothing. The spec asserts
+the exact query string the client emits, which is the only thing that catches it.
 
 ### Moderation is enforced by the server, not by the UI
 
