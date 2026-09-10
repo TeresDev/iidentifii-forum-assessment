@@ -120,6 +120,52 @@ and both insert. The composite primary key makes the second insert fail at the d
 place the guarantee can actually be made. The application also checks first, so the common case returns a
 clean error rather than an exception — but the key is the control, not the check.
 
+### The post list is one query, and the ordering is total
+
+Listing posts supports filtering by author, tag and date range, sorting by date or like count in either
+direction, and paging. All of it resolves in **two SQL statements per request** — one `COUNT(*)` for the
+total, one `SELECT` for the page — and that number does not grow with the rows, tags or comments returned.
+
+Everything the response needs is inside a single projection, so EF Core compiles it to joins and correlated
+subqueries rather than issuing a follow-up query per post. Captured from the running application with EF
+command logging on:
+
+```sql
+SELECT "p1"."Id", "p1"."Title", ..., "u"."Username",
+       (SELECT COUNT(*) FROM "Comments" AS "c" WHERE "p1"."Id" = "c"."PostId"),
+       "s"."TagSlug", "s"."DisplayName"
+FROM (
+    SELECT "p"."Id", "p"."AuthorId", "p"."Body", "p"."CreatedAtUtc", "p"."LikeCount", "p"."Title"
+    FROM "Posts" AS "p"
+    WHERE EXISTS (SELECT 1 FROM "PostTags" AS "p0"
+                  WHERE "p"."Id" = "p0"."PostId" AND "p0"."TagSlug" = @query_Tag)
+    ORDER BY "p"."LikeCount" DESC, "p"."Id" DESC
+    LIMIT @p2 OFFSET @p
+) AS "p1"
+INNER JOIN "Users" AS "u" ON "p1"."AuthorId" = "u"."Id"
+LEFT JOIN ( ... "PostTags" INNER JOIN "Tags" ... ) AS "s" ON "p1"."Id" = "s"."PostId"
+ORDER BY "p1"."LikeCount" DESC, "p1"."Id" DESC, ...
+```
+
+Note the `LIMIT`/`OFFSET` applies **inside** the subquery, before the joins, so paging limits how many post
+rows are read rather than how many joined rows are returned.
+
+To see this for yourself: run the API, request `/api/v1/posts?sort=likes&dir=desc`, and read the SQL from
+the console — EF command logging is on in Development.
+
+**`ORDER BY ... , "Id" DESC` is not decoration.** Like counts tie, and ties have no inherent order. Without
+a unique final column the engine may return tied rows differently for the query behind page 1 and the query
+behind page 2, so a post appears twice and another never appears at all. The seed contains deliberate ties
+and a test pages the entire list one row at a time, asserting every post is seen exactly once and in the
+same order as the unpaged result.
+
+The two supporting indexes are `(CreatedAtUtc DESC, Id DESC)` and `(LikeCount DESC, Id DESC)` — they match
+the sort expressions including the tiebreaker.
+
+**Date ranges are half-open:** `from` is inclusive, `to` is exclusive. Adjacent ranges therefore tile
+without double-counting the boundary row, and a test asserts that splitting the corpus at a timestamp
+yields two sets whose sizes sum to the whole.
+
 ### Authentication is JWT, issued in-process
 
 The brief requires authentication handled in the application rather than by an external provider.
