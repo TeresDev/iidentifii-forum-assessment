@@ -3,6 +3,7 @@
 
   <nav class="session">
     @if (auth.isAuthenticated()) {
+      <a routerLink="/posts/new">New post</a>
       <span class="who">
         {{ auth.username() }}
         @if (auth.isModerator()) {

@@ -11,26 +11,79 @@
   <article class="post-detail">
     <h1>{{ item.title }}</h1>
 
-    <p class="meta">
-      {{ item.authorUsername }} · {{ item.createdAtUtc | date: 'medium' }}
-      · {{ item.likeCount }} likes
-    </p>
+    <p class="meta">{{ item.authorUsername }} · {{ item.createdAtUtc | date: 'medium' }}</p>
 
     @if (item.tags.length) {
       <p class="tags">
         @for (tag of item.tags; track tag.slug) {
           <span class="tag" [class.moderation]="tag.slug === 'misleading-information'">
             {{ tag.displayName }}
+            @if (auth.isModerator()) {
+              <button
+                type="button"
+                class="tag-remove"
+                title="Remove tag"
+                [disabled]="busy()"
+                (click)="removeTag(tag.slug)">×</button>
+            }
           </span>
         }
       </p>
     }
 
     <p class="body">{{ item.body }}</p>
+
+    <div class="actions-row">
+      @if (auth.isAuthenticated()) {
+        <button
+          type="button"
+          [disabled]="busy() || isOwnPost()"
+          [title]="isOwnPost() ? 'You cannot like your own post' : ''"
+          (click)="toggleLike()">
+          {{ item.likedByCurrentUser ? 'Unlike' : 'Like' }} · {{ item.likeCount }}
+        </button>
+      } @else {
+        <span class="muted">{{ item.likeCount }} likes · <a routerLink="/login">sign in</a> to like</span>
+      }
+    </div>
+
+    @if (auth.isModerator()) {
+      <form class="moderation" [formGroup]="tagForm" (ngSubmit)="applyTag()">
+        <label>
+          Flag this post
+          <select formControlName="slug">
+            <option value="">Choose a tag…</option>
+            @for (tag of availableTags(); track tag.slug) {
+              <option [value]="tag.slug">{{ tag.displayName }}</option>
+            }
+          </select>
+        </label>
+        <button type="submit" [disabled]="busy() || tagForm.invalid">Apply tag</button>
+      </form>
+    }
+
+    @if (actionError(); as message) {
+      <p class="status error" role="alert">{{ message }}</p>
+    }
   </article>
 
   <section class="comments">
     <h2>Comments ({{ comments()?.totalCount ?? 0 }})</h2>
+
+    @if (auth.isAuthenticated()) {
+      <form class="comment-form" [formGroup]="commentForm" (ngSubmit)="addComment()">
+        <label>
+          Add a comment
+          <textarea formControlName="body" rows="3"></textarea>
+        </label>
+        @if (commentForm.controls.body.touched && commentForm.controls.body.invalid) {
+          <p class="field-error">A comment cannot be empty.</p>
+        }
+        <button type="submit" [disabled]="busy()">Post comment</button>
+      </form>
+    } @else {
+      <p class="status"><a routerLink="/login">Sign in</a> to join the discussion.</p>
+    }
 
     @if (comments(); as page) {
       @if (page.items.length === 0) {

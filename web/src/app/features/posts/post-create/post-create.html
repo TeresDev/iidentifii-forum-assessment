@@ -1,0 +1,30 @@
+<form class="card form wide" [formGroup]="form" (ngSubmit)="submit()">
+  <h1>New post</h1>
+
+  <label>
+    Title
+    <input formControlName="title" />
+  </label>
+  @if (form.controls.title.touched && form.controls.title.invalid) {
+    <p class="field-error">Title must be between 5 and 200 characters.</p>
+  }
+
+  <label>
+    Body
+    <textarea formControlName="body" rows="10"></textarea>
+  </label>
+  @if (form.controls.body.touched && form.controls.body.invalid) {
+    <p class="field-error">Body is required.</p>
+  }
+
+  @if (error(); as message) {
+    <p class="status error" role="alert">{{ message }}</p>
+  }
+
+  <div class="actions">
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Publishing…' : 'Publish' }}
+    </button>
+    <a routerLink="/">Cancel</a>
+  </div>
+</form>

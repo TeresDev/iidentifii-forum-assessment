@@ -117,3 +117,13 @@ code {
   border-radius: 4px;
   font-size: 0.85em;
 }
+
+.form.wide {
+  max-width: 680px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}

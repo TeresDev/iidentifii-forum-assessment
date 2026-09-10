@@ -287,7 +287,21 @@ the change tracker — a tracked increment would read-modify-write and lose conc
 
 *Trade-off:* denormalised data can drift. It is written in exactly two places, both transactional.
 
+## What it does
+
+| Flow | Who |
+|---|---|
+| Browse posts with filters (author, tag, date range), sorting (date, likes) and paging | Anyone |
+| Read a post and its comments, paged | Anyone |
+| Register and sign in | Anyone |
+| Create a post | Signed in |
+| Comment on a post | Signed in |
+| Like and unlike a post — once per post, never your own | Signed in |
+| Tag a post as misleading or false information, and untag it | Moderators |
+
+Write actions are hidden from users who cannot perform them, but hiding is presentation only — every rule
+is enforced server-side and there are tests calling the endpoints directly to prove it.
+
 ## Status
 
-In progress. Setup instructions, architecture notes and the Postman collection land as the corresponding
-features do — see the commit history.
+Feature-complete. The Postman collection and end-to-end tests land next — see the commit history.

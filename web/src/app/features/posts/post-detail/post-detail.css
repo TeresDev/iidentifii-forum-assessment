@@ -74,3 +74,50 @@
   gap: 1rem;
   margin-top: 1rem;
 }
+
+.actions-row {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.tag-remove {
+  all: unset;
+  cursor: pointer;
+  margin-left: 0.3rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.tag-remove:hover {
+  opacity: 1;
+}
+
+.moderation {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.comment-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.comment-form button {
+  justify-self: start;
+}
