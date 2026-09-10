@@ -35,6 +35,26 @@ dotnet run --project src/Forum.Api
 The API listens on **http://localhost:5080**. HTTP only — there is no HTTPS profile, so no
 `dotnet dev-certs` step is needed.
 
+On first run the database file is created, the schema is migrated and demo data is seeded. Running again
+does not duplicate it. To start over, stop the API and delete `api/src/Forum.Api/forum.db`.
+
+## Demo accounts
+
+Seeded on first run. Both roles are represented so moderator behaviour can be exercised.
+
+| Username | Password | Role |
+|---|---|---|
+| `mod.jordan` | `Moderator1!` | Moderator |
+| `alice` | `Password123!` | User |
+| `ben` | `Password123!` | User |
+| `chi` | `Password123!` | User |
+| `dana` | `Password123!` | User |
+| `eli`, `fay`, `gus` | `Password123!` | User |
+
+The seed is deliberately shaped so the list features are demonstrable: 26 posts across 7 authors with an
+uneven spread (`alice` has 11, enough to page a filtered result), deliberate ties in like count, nine posts
+with no comments, and one with thirteen so comment paging has something to page.
+
 ## Running the tests
 
 ```bash
