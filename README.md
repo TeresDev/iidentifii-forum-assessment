@@ -140,12 +140,18 @@ database is created and seeded on first run.
 The model is relational and stays that way — real foreign keys, real indexes, and a composite primary key
 enforcing one-like-per-user. Nothing about the schema assumes SQLite.
 
-*Rejected:* PostgreSQL, which is the production answer and would be a better story for concurrency. It
-needs a running server or Docker, which is a prerequisite the assessor may not have.
+*Rejected:* SQL Server, the likelier production target for an ASP.NET Core stack and the one I would
+expect to be running here. Ruled out for the same reason as the rest: it needs a running instance or a
+container, and LocalDB is Windows-only, so the assessor's platform would decide whether the clone runs.
 
-*At production scale:* move to PostgreSQL. Persistence is provider-agnostic — no provider-specific SQL and
-no raw queries — so it is a change of provider registration and connection string. SQLite serialises
-writers, which is fine for a demo and wrong for a forum with real traffic.
+*Rejected:* PostgreSQL, which would be the better story for concurrency. Same prerequisite problem — a
+running server or Docker, which the assessor may not have.
+
+*At production scale:* move to SQL Server or PostgreSQL. The model and the queries are provider-agnostic —
+no provider-specific SQL and no raw queries — so the code change is the provider registration and the
+connection string. The committed migration is SQLite-generated and would be regenerated against the target
+provider; nothing in the schema itself assumes SQLite. SQLite serialises writers, which is fine for a demo
+and wrong for a forum with real traffic.
 
 ### Four projects, dependencies pointing inward
 
@@ -345,8 +351,9 @@ would add. Mitigations in place: the interceptor attaches the token only to this
 is checked on restore as well as on use.
 
 **SQLite serialises writers.** Correct for a demo an assessor runs from a clone, wrong for a forum with
-real traffic. Persistence is provider-agnostic — no raw SQL, no provider-specific constructs — so moving to
-PostgreSQL is a provider registration and a connection string.
+real traffic. The model and the queries are provider-agnostic — no raw SQL, no provider-specific
+constructs — so moving to SQL Server or PostgreSQL is a provider registration, a connection string and a
+migration regenerated against that provider.
 
 **No rate limiting on `/auth/login`.** Password guessing is only slowed by PBKDF2. Per-IP and per-account
 limits belong here.
