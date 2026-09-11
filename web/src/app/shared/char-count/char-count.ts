@@ -13,12 +13,14 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   imports: [DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p class="char-count" [class.over]="overBy() > 0">
-      {{ length() | number }} / {{ max() | number }}
-      @if (overBy() > 0) {
-        <span aria-live="polite">· {{ overBy() | number }} over the limit</span>
-      }
-    </p>
+    @if (visible()) {
+      <p class="char-count" [class.over]="overBy() > 0">
+        {{ length() | number }} / {{ max() | number }}
+        @if (overBy() > 0) {
+          <span aria-live="polite">· {{ overBy() | number }} over the limit</span>
+        }
+      </p>
+    }
   `,
   styles: `
     .char-count {
@@ -38,5 +40,12 @@ export class CharCount {
   readonly length = input.required<number>();
   readonly max = input.required<number>();
 
+  /**
+   * Stay hidden until the limit is passed. Used for the password field, where a running
+   * count of what someone is typing is both unusual and needlessly revealing.
+   */
+  readonly onlyWhenOver = input(false);
+
   protected readonly overBy = computed(() => Math.max(0, this.length() - this.max()));
+  protected readonly visible = computed(() => !this.onlyWhenOver() || this.overBy() > 0);
 }

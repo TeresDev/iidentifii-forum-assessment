@@ -5,16 +5,22 @@
     Username
     <input formControlName="username" autocomplete="username" />
   </label>
-  @if (form.controls.username.touched && form.controls.username.invalid) {
-    <p class="field-error">Username must be between 3 and 32 characters.</p>
+  <app-char-count [length]="usernameLength()" [max]="usernameMax" />
+  @if (form.controls.username.touched && form.controls.username.hasError('required')) {
+    <p class="field-error">Username is required.</p>
+  } @else if (form.controls.username.touched && form.controls.username.hasError('minlength')) {
+    <p class="field-error">Username must be at least {{ usernameMin }} characters.</p>
   }
 
   <label>
     Password
     <input type="password" formControlName="password" autocomplete="new-password" />
   </label>
-  @if (form.controls.password.touched && form.controls.password.invalid) {
-    <p class="field-error">Password must be at least 8 characters.</p>
+  <app-char-count [length]="passwordLength()" [max]="passwordMax" [onlyWhenOver]="true" />
+  @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+    <p class="field-error">Password is required.</p>
+  } @else if (form.controls.password.touched && form.controls.password.hasError('minlength')) {
+    <p class="field-error">Password must be at least {{ passwordMin }} characters.</p>
   }
 
   @if (error(); as message) {
