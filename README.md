@@ -140,12 +140,9 @@ database is created and seeded on first run.
 The model is relational and stays that way — real foreign keys, real indexes, and a composite primary key
 enforcing one-like-per-user. Nothing about the schema assumes SQLite.
 
-*Rejected:* SQL Server, the likelier production target for an ASP.NET Core stack and the one I would
-expect to be running here. Ruled out for the same reason as the rest: it needs a running instance or a
-container, and LocalDB is Windows-only, so the assessor's platform would decide whether the clone runs.
-
-*Rejected:* PostgreSQL, which would be the better story for concurrency. Same prerequisite problem — a
-running server or Docker, which the assessor may not have.
+*Rejected:* SQL Server and PostgreSQL. SQL Server is the likelier production target for an ASP.NET Core
+stack, PostgreSQL the better story for concurrency, but both need a running instance or a container — and
+LocalDB is Windows-only, so the assessor's platform would decide whether the clone runs at all.
 
 *At production scale:* move to SQL Server or PostgreSQL. The model and the queries are provider-agnostic —
 no provider-specific SQL and no raw queries — so the code change is the provider registration and the
