@@ -91,6 +91,8 @@ end to end. Nothing is asserted three times in three places.
 
 ## API documentation (Postman)
 
+**Published collection:** https://documenter.getpostman.com/view/14578065/2sBYAysTps
+
 `postman/iidentifii-forum.postman_collection.json` — 19 requests across all 13 endpoints, with 25
 assertions. Import it into Postman, or run it headlessly:
 
