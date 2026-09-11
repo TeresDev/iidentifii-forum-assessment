@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -10,13 +11,15 @@ import { CommentDto, PagedResult, PostDetail as PostDetailModel, TagDto } from '
 import { PostsApi } from '../../../core/api/posts-api';
 import { toMessage } from '../../../core/api/problem-details';
 import { TagsApi } from '../../../core/api/tags-api';
+import { CharCount } from '../../../shared/char-count/char-count';
 import { AuthStore } from '../../../core/auth/auth-store';
 
 const COMMENT_PAGE_SIZE = 10;
+const COMMENT_MAX = 2_000;
 
 @Component({
   selector: 'app-post-detail',
-  imports: [RouterLink, DatePipe, ReactiveFormsModule],
+  imports: [RouterLink, DatePipe, ReactiveFormsModule, CharCount],
   templateUrl: './post-detail.html',
   styleUrl: './post-detail.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,8 +49,15 @@ export class PostDetail implements OnInit {
   );
 
   protected readonly commentForm = this.fb.nonNullable.group({
-    body: ['', [Validators.required, Validators.maxLength(2000)]],
+    body: ['', [Validators.required, Validators.maxLength(COMMENT_MAX)]],
   });
+
+  private readonly commentValue = toSignal(this.commentForm.controls.body.valueChanges, {
+    initialValue: '',
+  });
+
+  protected readonly commentLength = computed(() => this.commentValue().length);
+  protected readonly commentMax = COMMENT_MAX;
 
   protected readonly tagForm = this.fb.nonNullable.group({
     slug: ['', Validators.required],
@@ -127,6 +137,9 @@ export class PostDetail implements OnInit {
   protected addComment(): void {
     if (this.commentForm.invalid || this.busy()) {
       this.commentForm.markAllAsTouched();
+      if (this.commentForm.controls.body.hasError('maxlength')) {
+        this.actionError.set('The comment is over the character limit. Shorten it to post.');
+      }
       return;
     }
 

@@ -5,15 +5,19 @@
     Title
     <input formControlName="title" />
   </label>
-  @if (form.controls.title.touched && form.controls.title.invalid) {
-    <p class="field-error">Title must be between 5 and 200 characters.</p>
+  <app-char-count [length]="titleLength()" [max]="titleMax" />
+  @if (form.controls.title.touched && form.controls.title.hasError('required')) {
+    <p class="field-error">Title is required.</p>
+  } @else if (form.controls.title.touched && form.controls.title.hasError('minlength')) {
+    <p class="field-error">Title must be at least {{ titleMin }} characters.</p>
   }
 
   <label>
     Body
     <textarea formControlName="body" rows="10"></textarea>
   </label>
-  @if (form.controls.body.touched && form.controls.body.invalid) {
+  <app-char-count [length]="bodyLength()" [max]="bodyMax" />
+  @if (form.controls.body.touched && form.controls.body.hasError('required')) {
     <p class="field-error">Body is required.</p>
   }
 

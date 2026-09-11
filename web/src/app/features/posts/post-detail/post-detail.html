@@ -76,7 +76,8 @@
           Add a comment
           <textarea formControlName="body" rows="3"></textarea>
         </label>
-        @if (commentForm.controls.body.touched && commentForm.controls.body.invalid) {
+        <app-char-count [length]="commentLength()" [max]="commentMax" />
+        @if (commentForm.controls.body.touched && commentForm.controls.body.hasError('required')) {
           <p class="field-error">A comment cannot be empty.</p>
         }
         <button type="submit" [disabled]="busy()">Post comment</button>
