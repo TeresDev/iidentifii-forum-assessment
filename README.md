@@ -343,20 +343,20 @@ follows is what I'd have cut to hit a strict six hours, and what I left out on p
 **The session token sits in `localStorage`.** Any script on the page can read it, and unlike a cookie it
 can't be made `HttpOnly`. In production I'd hold a short-lived access token in memory and put the refresh
 token in an `HttpOnly` cookie. That means a refresh endpoint, rotation, and thinking properly about CSRF,
-which is why it isn't here. It's the first thing I'd add. What I did do: the interceptor only attaches the
-token to this API's origin, and expiry gets checked when the session is restored, not just when it's used.
+which is why it isn't here in this version. It's the first thing I'd add. What I did do: the interceptor
+only attaches the token to this API's origin, and expiry gets checked when the session is restored, not
+just when it's used.
 
 **SQLite serialises writers.** Fine for a demo you run from a clone. Not fine for a forum with real traffic.
 
-Moving to SQL Server or PostgreSQL isn't just a connection string, and I don't want to pretend it is. The
-application code does move cleanly: there's no raw SQL, nothing provider-specific, and the filters compare
-on ids and dates rather than doing string matching that would behave differently under another collation.
-What doesn't move is the migration and the tests. The committed migration was generated for SQLite and has
-SQLite's column types baked into it, so it has to be regenerated against whatever you're targeting. The
-integration tests run against SQLite in memory, so as it stands they prove the constraints hold on SQLite
-and nothing else. Doing it properly means regenerating the migration, pointing the integration suite at the
-real provider, and running it there to confirm the constraints still bite. That's a day's work, not a
-config change.
+Moving to SQL Server or PostgreSQL isn't just a connection string. The application code does move cleanly:
+there's no raw SQL, nothing provider-specific, and the filters compare on ids and dates rather than doing
+string matching that would behave differently under another collation. What doesn't move is the migration
+and the tests. The committed migration was generated for SQLite and has SQLite's column types baked into it,
+so it has to be regenerated against whatever you're targeting. The integration tests run against SQLite in
+memory, so as it stands they prove the constraints hold on SQLite and nothing else. Doing it properly means
+regenerating the migration, pointing the integration suite at the real provider, and running it there to
+confirm the constraints still work.
 
 **Nothing rate limits `/auth/login`.** The only thing slowing down a password guessing attack is the cost
 of PBKDF2. It needs per-IP and per-account limits.
@@ -368,7 +368,7 @@ Anywhere real it comes from an environment variable or a secret store.
 Registration always assigns the regular role and never reads one from the request, because accepting a role
 there would let anyone sign up as a moderator and start tagging content.
 
-A real deployment needs an admin-only endpoint for this, or better, a role claim from whatever identity
+A real deployment needs an admin-only endpoint for this, or a role claim from whatever identity
 provider the business already runs, so the forum never owns role assignment at all. There's a second
 problem behind it. The role is a claim inside the token, so changing someone's role doesn't take effect
 until their current token expires, which can be eight hours. Promoting someone is harmless. Demoting them
@@ -383,13 +383,10 @@ paging on `(sortKey, Id)` is the fix, and the indexes are already shaped for it.
 needs both, along with an ownership check and a moderation trail.
 
 **What I'd have cut to hit six hours:** the end-to-end suite, the Postman failure-case folder, half the
-integration tests, and this document. I'd have kept the domain rules, the list query and the authorisation
-tests. Those are the ones it would be embarrassing to get wrong.
+integration tests. I'd have kept the domain rules, the list query and the authorisation
+tests.
 
 ## Troubleshooting
-
-**`npm install` fails with `Cannot read properties of null (reading 'edgesOut')`.** An npm 10.x resolver
-bug on this dependency tree. Use `npm ci`, which is what the lockfile is committed for.
 
 **`npx playwright install` times out downloading Chromium.** Usually a machine with a broken IPv6 route
 where DNS still advertises an AAAA record: Playwright resolves IPv6-first and its 5-second attempt timeout
