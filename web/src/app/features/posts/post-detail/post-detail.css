@@ -29,6 +29,8 @@
 }
 
 .tag {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
@@ -99,7 +101,8 @@
   opacity: 1;
 }
 
-.moderation {
+/* Scoped to the form: the flagged-tag chip also carries `moderation`. */
+form.moderation {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px dashed var(--border);
