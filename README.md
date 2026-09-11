@@ -144,11 +144,10 @@ enforcing one-like-per-user. Nothing about the schema assumes SQLite.
 stack, PostgreSQL the better story for concurrency, but both need a running instance or a container — and
 LocalDB is Windows-only, so the assessor's platform would decide whether the clone runs at all.
 
-*At production scale:* move to SQL Server or PostgreSQL. The model and the queries are provider-agnostic —
-no provider-specific SQL and no raw queries — so the code change is the provider registration and the
-connection string. The committed migration is SQLite-generated and would be regenerated against the target
-provider; nothing in the schema itself assumes SQLite. SQLite serialises writers, which is fine for a demo
-and wrong for a forum with real traffic.
+*At production scale:* move to SQL Server or PostgreSQL. The model and the queries carry over as they
+are: no raw SQL, nothing provider-specific. The migration doesn't. It was generated for SQLite, so it gets
+regenerated against the target, and the integration tests need repointing at that provider before anyone
+can say the constraints still hold. Known limitations has the detail.
 
 ### Four projects, dependencies pointing inward
 
@@ -337,45 +336,55 @@ is enforced server-side and there are tests calling the endpoints directly to pr
 
 ## Known limitations and trade-offs
 
-Scoped to what the brief asks for. It took longer than the stated six hours — the QA section says every
-flow is verified rather than just the happy path, and I was not willing to ship required flows untested.
-What follows is what I would have cut for a strict six-hour version, and what I left out deliberately.
+All of this is scoped to the brief. It took me longer than six hours. The QA section asks for every flow to
+be verified rather than just the happy path, and I wasn't willing to submit required flows untested. What
+follows is what I'd have cut to hit a strict six hours, and what I left out on purpose.
 
-**The session token lives in `localStorage`.** Readable by any script on the page, and unlike a cookie it
-cannot be made `HttpOnly`. The production answer is a short-lived in-memory access token plus an `HttpOnly`
-refresh cookie. That costs a refresh endpoint, rotation and a CSRF consideration; it is the first thing I
-would add. Mitigations in place: the interceptor attaches the token only to this API's origin, and expiry
-is checked on restore as well as on use.
+**The session token sits in `localStorage`.** Any script on the page can read it, and unlike a cookie it
+can't be made `HttpOnly`. In production I'd hold a short-lived access token in memory and put the refresh
+token in an `HttpOnly` cookie. That means a refresh endpoint, rotation, and thinking properly about CSRF,
+which is why it isn't here. It's the first thing I'd add. What I did do: the interceptor only attaches the
+token to this API's origin, and expiry gets checked when the session is restored, not just when it's used.
 
-**SQLite serialises writers.** Correct for a demo an assessor runs from a clone, wrong for a forum with
-real traffic. The model and the queries are provider-agnostic — no raw SQL, no provider-specific
-constructs — so moving to SQL Server or PostgreSQL is a provider registration, a connection string and a
-migration regenerated against that provider.
+**SQLite serialises writers.** Fine for a demo you run from a clone. Not fine for a forum with real traffic.
 
-**No rate limiting on `/auth/login`.** Password guessing is only slowed by PBKDF2. Per-IP and per-account
-limits belong here.
+Moving to SQL Server or PostgreSQL isn't just a connection string, and I don't want to pretend it is. The
+application code does move cleanly: there's no raw SQL, nothing provider-specific, and the filters compare
+on ids and dates rather than doing string matching that would behave differently under another collation.
+What doesn't move is the migration and the tests. The committed migration was generated for SQLite and has
+SQLite's column types baked into it, so it has to be regenerated against whatever you're targeting. The
+integration tests run against SQLite in memory, so as it stands they prove the constraints hold on SQLite
+and nothing else. Doing it properly means regenerating the migration, pointing the integration suite at the
+real provider, and running it there to confirm the constraints still bite. That's a day's work, not a
+config change.
+
+**Nothing rate limits `/auth/login`.** The only thing slowing down a password guessing attack is the cost
+of PBKDF2. It needs per-IP and per-account limits.
 
 **The JWT signing key is committed** in `appsettings.json` so the project runs from a clone with no setup.
-In any real deployment it comes from an environment variable or secret store.
+Anywhere real it comes from an environment variable or a secret store.
 
-**Roles are seeded, not administered.** `mod.jordan` is the only moderator, created on first run.
-Registration hardcodes the regular role — accepting one from the request would let anyone register as a
-moderator and tag content. A real deployment needs an admin-only endpoint, or a claim from whatever identity
-provider the organisation already runs, so the forum never owns role assignment at all. The related catch is
-that the role is a claim inside the token, so a change to it takes effect only when that token expires, up
-to eight hours later. Promotion is harmless. Demotion is not: a moderator you strip keeps the power until
-then. The short-lived access token described above closes both.
+**Roles are seeded, not administered.** `mod.jordan` is the only moderator and gets created on first run.
+Registration always assigns the regular role and never reads one from the request, because accepting a role
+there would let anyone sign up as a moderator and start tagging content.
 
-**Offset paging, not keyset.** `LIMIT/OFFSET` degrades on deep pages because the database still walks the
-skipped rows. Fine at 26 posts; at a million, page 10,000 is slow. Keyset paging on `(sortKey, Id)` is the
-fix, and the indexes are already shaped for it.
+A real deployment needs an admin-only endpoint for this, or better, a role claim from whatever identity
+provider the business already runs, so the forum never owns role assignment at all. There's a second
+problem behind it. The role is a claim inside the token, so changing someone's role doesn't take effect
+until their current token expires, which can be eight hours. Promoting someone is harmless. Demoting them
+isn't: a moderator you've stripped keeps the power until their token runs out. The short-lived access token
+above fixes that too.
 
-**Posts and comments cannot be edited or deleted.** Not in the brief, so not built — but a real forum needs
-both, plus an ownership check and a moderation trail.
+**Paging is offset-based, not keyset.** `LIMIT/OFFSET` gets slower the deeper you go, because the database
+still walks the rows it's skipping. At 26 posts nobody notices. At a million, page 10,000 is slow. Keyset
+paging on `(sortKey, Id)` is the fix, and the indexes are already shaped for it.
 
-**What I would cut for six hours:** the end-to-end suite, the Postman failure-case folder, half the
-integration tests, and this document. The domain rules, the list query and the authorisation tests would
-stay — they are the parts that would be embarrassing to get wrong.
+**Posts and comments can't be edited or deleted.** Not in the brief, so I didn't build it, but a real forum
+needs both, along with an ownership check and a moderation trail.
+
+**What I'd have cut to hit six hours:** the end-to-end suite, the Postman failure-case folder, half the
+integration tests, and this document. I'd have kept the domain rules, the list query and the authorisation
+tests. Those are the ones it would be embarrassing to get wrong.
 
 ## Troubleshooting
 
