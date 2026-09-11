@@ -354,6 +354,14 @@ limits belong here.
 **The JWT signing key is committed** in `appsettings.json` so the project runs from a clone with no setup.
 In any real deployment it comes from an environment variable or secret store.
 
+**Roles are seeded, not administered.** `mod.jordan` is the only moderator, created on first run.
+Registration hardcodes the regular role — accepting one from the request would let anyone register as a
+moderator and tag content. A real deployment needs an admin-only endpoint, or a claim from whatever identity
+provider the organisation already runs, so the forum never owns role assignment at all. The related catch is
+that the role is a claim inside the token, so a change to it takes effect only when that token expires, up
+to eight hours later. Promotion is harmless. Demotion is not: a moderator you strip keeps the power until
+then. The short-lived access token described above closes both.
+
 **Offset paging, not keyset.** `LIMIT/OFFSET` degrades on deep pages because the database still walks the
 skipped rows. Fine at 26 posts; at a million, page 10,000 is slow. Keyset paging on `(sortKey, Id)` is the
 fix, and the indexes are already shaped for it.
