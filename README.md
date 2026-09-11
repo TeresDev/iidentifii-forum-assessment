@@ -368,12 +368,12 @@ Anywhere real it comes from an environment variable or a secret store.
 Registration always assigns the regular role and never reads one from the request, because accepting a role
 there would let anyone sign up as a moderator and start tagging content.
 
-A real deployment needs an admin-only endpoint for this, or a role claim from whatever identity
-provider the business already runs, so the forum never owns role assignment at all. There's a second
-problem behind it. The role is a claim inside the token, so changing someone's role doesn't take effect
-until their current token expires, which can be eight hours. Promoting someone is harmless. Demoting them
-isn't: a moderator you've stripped keeps the power until their token runs out. The short-lived access token
-above fixes that too.
+A real deployment needs an admin-only endpoint for this, or a role claim from whatever identity provider
+the business already runs, so the forum never owns role assignment at all. There's a second problem
+behind it. The role is a claim inside the token, so changing someone's role doesn't take effect until
+their current token expires, which can be eight hours. Promoting someone is harmless. Demoting them
+isn't: a moderator you've stripped keeps the power until their token runs out. The short-lived access
+token above fixes that too.
 
 **Paging is offset-based, not keyset.** `LIMIT/OFFSET` gets slower the deeper you go, because the database
 still walks the rows it's skipping. At 26 posts nobody notices. At a million, page 10,000 is slow. Keyset
@@ -383,8 +383,7 @@ paging on `(sortKey, Id)` is the fix, and the indexes are already shaped for it.
 needs both, along with an ownership check and a moderation trail.
 
 **What I'd have cut to hit six hours:** the end-to-end suite, the Postman failure-case folder, half the
-integration tests. I'd have kept the domain rules, the list query and the authorisation
-tests.
+integration tests. I'd have kept the domain rules, the list query and the authorisation tests.
 
 ## Troubleshooting
 
